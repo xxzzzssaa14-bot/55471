@@ -209,6 +209,8 @@ window.addEventListener('offline', () => { isOnline = false; updateNetworkStatus
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js');
+        // إظهار زر التثبيت فوراً عند تحميل الصفحة
+        document.getElementById('install-prompt').style.display = 'block';
     });
 }
 
@@ -571,6 +573,7 @@ window.openRentModal = function() {
     window.changeRentInventory(1);
     document.getElementById('rent-items-container').innerHTML = '';
     document.getElementById('rent-paid').value = '';
+    document.getElementById('rent-days').value = '1';
     window.addRentItemRow(); 
     window.openModal('rentModal');
 }
@@ -635,6 +638,7 @@ window.addRentItemRow = function() {
 
 window.saveRentalTransaction = async function() {
     const paid = parseFloat(document.getElementById('rent-paid').value) || 0;
+    const days = parseInt(document.getElementById('rent-days').value) || 1;
     const customer = data.customers.find(c => c.id === currentCustomerId);
 
     let itemsText = [];
@@ -646,6 +650,7 @@ window.saveRentalTransaction = async function() {
     const prices = document.querySelectorAll('.rent-item-price');
     
     const nowTimestamp = Date.now();
+    const returnDateTimestamp = nowTimestamp + (days * 86400000);
 
     searches.forEach((search, index) => {
         if(search.value.trim() !== '') {
@@ -710,6 +715,8 @@ window.saveRentalTransaction = async function() {
         type: 'rent',
         items: itemsText.join(' + '),
         itemsArray: itemsArray,
+        days: days,
+        returnDateTimestamp: returnDateTimestamp,
         totalCost: 0,
         paid: paid,
         date: now.toLocaleDateString('ar-IQ'),
@@ -779,7 +786,7 @@ window.openEditTransactionModal = function(id) {
         document.getElementById('edit-trans-items').value = trans.items || (trans.itemsArray ? trans.itemsArray.map(i=>`${i.name}(${i.qty})`).join(', ') : '');
         document.getElementById('edit-trans-date').value = trans.rawDate || '';
         document.getElementById('edit-trans-time').value = trans.rawTime || '';
-        document.getElementById('edit-trans-days').value = trans.days || 0;
+        document.getElementById('edit-trans-days').value = trans.days || 1;
         
         const dailyRate = trans.days > 0 ? ((trans.total || trans.totalCost) / trans.days) : 0;
         document.getElementById('edit-trans-days').dataset.dailyRate = dailyRate;
@@ -816,6 +823,7 @@ window.saveEditTransaction = async function() {
     if(newDate) { trans.rawDate = newDate; trans.date = newDate; }
     if(newTime) { trans.rawTime = newTime; trans.time = newTime; }
     trans.days = newDays;
+    trans.returnDateTimestamp = trans.id + (newDays * 86400000); // تحديث التنبيهات بناءً على الأيام الجديدة
     trans.total = newTotal;
     trans.totalCost = newTotal;
     trans.paid = newPaid;
@@ -1090,6 +1098,18 @@ function renderUI() {
     if(document.getElementById('tab-inventory').classList.contains('active')) window.renderInventory();
     if(document.getElementById('tab-customers').classList.contains('active')) window.renderCustomers();
     if(document.getElementById('customer-details-view').style.display === 'block') window.renderTransactions();
+}
+
+// دالة التبديل بين الوضع الليلي والنهاري
+window.toggleDarkMode = function() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('darkMode', isDark);
+}
+
+// التحقق من الوضع المحفوظ عند التحميل
+if (localStorage.getItem('darkMode') === 'true') {
+    document.body.classList.add('dark-mode');
 }
 
 initData();
